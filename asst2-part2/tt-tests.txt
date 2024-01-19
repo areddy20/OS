@@ -1,0 +1,116 @@
+Script started on 2023-11-29 22:00:38-05:00
+bash-4.4$ cd [K[K[Kpwd
+/home/areddy20/os161/asst2-part2
+bash-4.4$ cd ../os161-1.11/[K[K[K[K[K[K[K[K[K[K[Kroot/
+bash-4.4$ pwd
+/home/areddy20/os161/root
+bash-4.4$ ls -altrh
+total 3.3M
+drwxr-sr-x.  2 areddy20 itestudent   46 Nov 29 16:09 lib
+drwxr-sr-x.  2 areddy20 itestudent  207 Nov 29 16:09 bin
+drwxr-sr-x.  2 areddy20 itestudent   96 Nov 29 16:09 hostbin
+drwxr-sr-x.  2 areddy20 itestudent  100 Nov 29 16:09 sbin
+-rw-r--r--.  1 areddy20 itestudent 5.1M Nov 29 16:09 DISK1.img
+-rw-r--r--.  1 areddy20 itestudent 5.6K Nov 29 16:09 sys161.conf
+-rwxr-xr-x.  1 areddy20 itestudent 390K Nov 29 16:09 kernel-ASST0
+-rw-r--r--.  1 areddy20 itestudent 5.1M Nov 29 16:09 DISK2.img
+-rwxr-xr-x.  1 areddy20 itestudent 404K Nov 29 16:09 kernel-ASST1
+drwxr-sr-x.  9 areddy20 itestudent  148 Nov 29 16:09 man
+drwxr-sr-x.  2 areddy20 itestudent 4.0K Nov 29 19:38 testbin
+drwxr-sr-x. 10 areddy20 itestudent  303 Nov 29 19:48 ..
+-rwxr-xr-x.  1 areddy20 itestudent 418K Nov 29 21:55 kernel-ASST2
+lrwxrwxrwx.  1 areddy20 itestudent   12 Nov 29 21:55 kernel -> kernel-ASST2
+drwxr-sr-x. 12 areddy20 itestudent 4.0K Nov 29 21:55 .
+drwxr-sr-x.  5 areddy20 itestudent  308 Nov 29 21:55 include
+drwxr-sr-x.  2 areddy20 itestudent   50 Nov 29 21:55 hostinclude
+drwxr-sr-x.  2 areddy20 itestudent   37 Nov 29 21:55 hostlib
+drwx--S---.  2 areddy20 itestudent   42 Nov 29 21:56 .sockets
+bash-4.4$ syst[K161 kernel
+sys161: System/161 release 2.0.8, compiled Jan 10 2022 16:03:24
+
+OS/161 base system version 1.11
+Copyright (c) 2000, 2001, 2002, 2003
+   President and Fellows of Harvard College.  All rights reserved.
+
+Aditi Reddy(AREDDY20)'s system version 0 (ASST2 #21)
+
+Cpu is MIPS r2000/r3000
+1868k physical memory available
+Device probe...
+lamebus0 (system main bus)
+emu0 at lamebus0
+ltimer0 at lamebus0
+hardclock on ltimer0 (100 hz)
+beep0 at ltimer0
+rtclock0 at ltimer0
+lrandom0 at lamebus0
+random0 at lrandom0
+lhd0 at lamebus0
+lhd1 at lamebus0
+lser0 at lamebus0
+con0 at lser0
+pseudorand0 (virtual)
+
+Hello World!
+VM free pages: 0
+Connecting to server (null)
+Opening file (null)
+Loading program (null)
+Received system call 0
+Entering locore
+Received interrupt 0
+Opening device (null)
+Mounting filesystem (null)
+Malloc: Allocating 0 bytes
+OS/161 kernel [? for menu]: ?
+
+OS/161 kernel menu
+    [?o] Operations menu                [kh] Kernel heap stats              
+    [?t] Tests menu                     [q] Quit and shut down              
+
+Operation took 0.047872840 seconds
+OS/161 kernel [? for menu]: ?t
+
+OS/161 tests menu
+    [at]  Array test                    [sy1] Semaphore test                
+    [bt]  Bitmap test                   [sy2] Lock test             (1)     
+    [qt]  Queue test                    [sy3] CV test               (1)     
+    [km1] Kernel malloc test            [fs1] Filesystem test               
+    [km2] kmalloc stress test           [fs2] FS read stress        (4)     
+    [tt1] Thread test 1                 [fs3] FS write stress       (4)     
+    [tt2] Thread test 2                 [fs4] FS write stress 2     (4)     
+    [tt3] Thread test 3                 [fs5] FS create stress      (4)     
+
+    (1) These tests will fail until you finish the synch assignment.
+    (4) These tests will fail until you finish the file system assignment.
+
+Operation took 0.208637920 seconds
+OS/161 kernel [? for menu]: tt1
+Starting thread test...
+000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222233333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333344444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444455555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555566666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666677777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777722222
+Thread test done.
+Operation took 0.549897400 seconds
+OS/161 kernel [? for menu]: tt2
+Starting thread test 2...
+0123456701367245
+Thread test 2 done.
+Operation took 0.667934960 seconds
+OS/161 kernel [? for menu]: tt3
+Starting thread test 3 (5 [sleepalots], 2 {computes}, 1 waker)
+[0][3][1][2][4]{1: 109}{0: 73}[3][1][0][4][2]{1: 174}[4][3]{0: 246}[1][0][2][1][4]{1: 202}[0][3]{0: 43}[4][1][3][2][1][3]{1: 65}[4]{0: 247}[2][1][4][0][2][3][1]{1: 77}[4]{0: 130}[1][0][2]{1: 21}[1]{0: 189}[3][0][4][2][0]{1: 226}[3][1]{0: 237}[2][4][0][3][3][1]{1: 174}[0][2][3]{0: 3}[1][4][2][3][2][0]{1: 165}[1]{0: 81}[1][3][2][4][0]{1: 86}[2][1]{0: 160}[3][4][0][2][1][3][0][1][4][3][2][2][4][1][0][3][1][2][3][0][4][2][4][3][0][2][4][0][4][0][0][4]
+Thread test 3 done
+Operation took 13.947455040 seconds
+OS/161 kernel [? for menu]: q
+Shutting down.
+The system is halted.
+sys161: 154132560398 cycles (26045750088 run, 128086810310 global-idle)
+sys161:   cpu0: 1196764179 kern, 0 user, 0 idle; 0 ll, 0/0 sc, 0 sync
+sys161: 518203 irqs 0 exns 0r/0w disk 19r/3718w console 0r/0w/1m emufs 0r/0w net
+sys161: Elapsed real time: 28.517974 seconds (5404.75 mhz)
+sys161: Elapsed virtual time: 5171.357276552 seconds (25 mhz)
+bash-4.4$ quit
+bash: quit: command not found
+bash-4.4$ exit
+exit
+
+Script done on 2023-11-29 22:01:49-05:00

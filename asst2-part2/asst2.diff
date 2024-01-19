@@ -1,0 +1,841 @@
+diff --git a/include/sys/wait.h b/include/sys/wait.h
+index fd4a86e..931017b 100644
+--- a/include/sys/wait.h
++++ b/include/sys/wait.h
+@@ -1,2 +1,2 @@
+ /* This file is for UNIX compat. In OS/161, everything's in <unistd.h> */
+-#include <unistd.h>
++#include <unistd.h>
+\ No newline at end of file
+diff --git a/include/unistd.h b/include/unistd.h
+index ceb81bb..5167897 100644
+--- a/include/unistd.h
++++ b/include/unistd.h
+@@ -11,7 +11,6 @@
+ #include <kern/unistd.h>
+ #include <kern/ioctl.h>
+ 
+-
+ /*
+  * Prototypes for OS/161 system calls.
+  *
+@@ -25,7 +24,7 @@
+  *
+  * If this were standard Unix, more prototypes would go in other
+  * header files as well, as follows:
+- * 
++ *
+  *     waitpid:  sys/wait.h
+  *     open:     fcntl.h or sys/fcntl.h
+  *     reboot:   sys/reboot.h
+@@ -39,14 +38,14 @@
+  * in OS/161. This is the "mode" (file permissions) for a newly created
+  * object. (With open, if no file is created, this is ignored, and the
+  * call prototype is gimmicked so it doesn't have to be passed either.)
+- * 
++ *
+  * You should ignore these arguments in the OS/161 kernel unless you're
+- * implementing security and file permissions. 
++ * implementing security and file permissions.
+  *
+- * If you are implementing security and file permissions and using a 
++ * If you are implementing security and file permissions and using a
+  * model different from Unix so that you need different arguments to
+  * these calls, you may make appropriate changes, or define new syscalls
+- * with different names and take the old ones out, or whatever. 
++ * with different names and take the old ones out, or whatever.
+  *
+  * As a general rule of thumb, however, while you can make as many new
+  * syscalls of your own as you like, you shouldn't change the
+@@ -62,7 +61,6 @@
+  * the text of the various assignments for an authoritative list.
+  */
+ 
+-
+ /*
+  * NOTE NOTE NOTE NOTE NOTE
+  *
+@@ -72,7 +70,6 @@
+  * functions will usually have slightly different signatures.
+  */
+ 
+-
+ #ifdef __GNUC__
+ /* GCC gets into a snit if _exit isn't declared to not return */
+ #define __DEAD __attribute__((__noreturn__))
+@@ -85,7 +82,8 @@ __DEAD void _exit(int code);
+ int execv(const char *prog, char *const *args);
+ pid_t fork(void);
+ int waitpid(pid_t pid, int *returncode, int flags);
+-/* 
++
++/*
+  * Open actually takes either two or three args: the optional third
+  * arg is the file mode used for creation. Unless you're implementing
+  * security and permissions, you can ignore it.
+@@ -101,6 +99,7 @@ int rmdir(const char *dirname);
+ 
+ /* Recommended. */
+ int getpid(void);
++int getppid(void);
+ int ioctl(int filehandle, int code, void *buf);
+ int lseek(int filehandle, off_t pos, int code);
+ int fsync(int filehandle);
+@@ -127,7 +126,7 @@ int __getcwd(char *buf, size_t buflen);
+  * These are not themselves system calls, but wrapper routines in libc.
+  */
+ 
+-char *getcwd(char *buf, size_t buflen);		/* calls __getcwd */
+-time_t time(time_t *seconds);			/* calls __time */
++char *getcwd(char *buf, size_t buflen); /* calls __getcwd */
++time_t time(time_t *seconds);           /* calls __time */
+ 
+ #endif /* _UNISTD_H_ */
+diff --git a/kern/arch/mips/mips/dumbvm.c b/kern/arch/mips/mips/dumbvm.c
+index 10638bf..7bb6c74 100644
+--- a/kern/arch/mips/mips/dumbvm.c
++++ b/kern/arch/mips/mips/dumbvm.c
+@@ -73,7 +73,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
+ 
+ 	faultaddress &= PAGE_FRAME;
+ 
+-	DEBUG(DB_VM, "dumbvm: fault: 0x%x\n", faultaddress);
++	// DEBUG(DB_VM, "dumbvm: fault: 0x%x\n", faultaddress);
+ 
+ 	switch (faulttype) {
+ 	    case VM_FAULT_READONLY:
+@@ -142,7 +142,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
+ 		}
+ 		ehi = faultaddress;
+ 		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+-		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
++		// DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
+ 		TLB_Write(ehi, elo, i);
+ 		splx(spl);
+ 		return 0;
+@@ -276,7 +276,7 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
+ 
+ int
+ as_copy(struct addrspace *old, struct addrspace **ret)
+-{
++{	
+ 	struct addrspace *new;
+ 
+ 	new = as_create();
+diff --git a/kern/arch/mips/mips/syscall.c b/kern/arch/mips/mips/syscall.c
+index 60e431d..c5310c2 100644
+--- a/kern/arch/mips/mips/syscall.c
++++ b/kern/arch/mips/mips/syscall.c
+@@ -51,6 +51,7 @@ mips_syscall(struct trapframe *tf)
+ 	int callno;
+ 	int32_t retval;
+ 	int err;
++	int i;
+ 
+ 	assert(curspl==0);
+ 
+@@ -69,15 +70,46 @@ mips_syscall(struct trapframe *tf)
+ 
+ 	switch (callno) {
+ 	    case SYS_reboot:
+-		err = sys_reboot(tf->tf_a0);
+-		break;
++			err = sys_reboot(tf->tf_a0);
++			break;
++
++		case SYS_write:
++			err = 0;
++			for (i = 0; i < (size_t) tf->tf_a2; ++i) {
++				kprintf("%c", ((char *) tf->tf_a1)[i]);
++			}
++			break;
++
++		case SYS__exit:
++			sys_exit( tf->tf_a0 );
++			err = 0;
++			break;
++
++		case SYS_fork:
++ 			err = sys_fork(tf, &retval);
++ 			break;
++
++		case SYS_getpid:
++			err = sys_getpid(&retval);
++			break;
++
++		case SYS_getppid:
++			err = sys_getppid(&retval);
++			break;
++
++		case SYS_waitpid:
++			err = sys_waitpid(tf->tf_a0, (userptr_t)tf->tf_a1, tf->tf_a2, &retval);
++			break;
++
++        case SYS_execv:
++            err = sys_execv((const char *)tf->tf_a0, (char **)tf->tf_a1, &retval);
++            break;
+ 
+-	    /* Add stuff here */
+  
+ 	    default:
+-		kprintf("Unknown syscall %d\n", callno);
+-		err = ENOSYS;
+-		break;
++			kprintf("Unrecognized syscall %d\n", callno);
++			err = ENOSYS;
++			break;
+ 	}
+ 
+ 
+@@ -100,7 +132,6 @@ mips_syscall(struct trapframe *tf)
+ 	 * Now, advance the program counter, to avoid restarting
+ 	 * the syscall over and over again.
+ 	 */
+-	
+ 	tf->tf_epc += 4;
+ 
+ 	/* Make sure the syscall code didn't forget to lower spl */
+@@ -117,5 +148,8 @@ md_forkentry(struct trapframe *tf)
+ 	 * Thus, you can trash it and do things another way if you prefer.
+ 	 */
+ 
+-	(void)tf;
++	tf->tf_v0 = 0;
++    tf->tf_a3 = 0;
++    tf->tf_epc += 4;
++	mips_usermode(tf);
+ }
+diff --git a/kern/arch/mips/mips/trap.c b/kern/arch/mips/mips/trap.c
+index 30fca6f..fef44e0 100644
+--- a/kern/arch/mips/mips/trap.c
++++ b/kern/arch/mips/mips/trap.c
+@@ -101,8 +101,8 @@ mips_trap(struct trapframe *tf)
+ 		/* Interrupts should have been on while in user mode. */
+ 		assert(curspl==0);
+ 
+-		DEBUG(DB_SYSCALL, "syscall: #%d, args %x %x %x %x\n", 
+-		      tf->tf_v0, tf->tf_a0, tf->tf_a1, tf->tf_a2, tf->tf_a3);
++		// DEBUG(DB_SYSCALL, "syscall: #%d, args %x %x %x %x\n", 
++		//       tf->tf_v0, tf->tf_a0, tf->tf_a1, tf->tf_a2, tf->tf_a3);
+ 
+ 		mips_syscall(tf);
+ 		goto done;
+diff --git a/kern/conf/conf.kern b/kern/conf/conf.kern
+index 7d1d846..ddd32c8 100644
+--- a/kern/conf/conf.kern
++++ b/kern/conf/conf.kern
+@@ -373,6 +373,9 @@ file      thread/thread.c
+ file      main/main.c
+ file      main/menu.c
+ 
++# Proc related files 
++file      proc/proc.c
++
+ #
+ # User-level programming/system call support
+ # (you will probably want to add stuff here while doing the basic system
+@@ -382,6 +385,12 @@ file      main/menu.c
+ file      userprog/loadelf.c
+ file      userprog/runprogram.c
+ file      userprog/uio.c
++file      userprog/execv.c
++file      userprog/exit.c
++file      userprog/fork.c
++file      userprog/getpid.c
++file      userprog/getppid.c
++file      userprog/waitpid.c
+ 
+ #
+ # Virtual memory system
+diff --git a/kern/include/addrspace.h b/kern/include/addrspace.h
+index 6b3e4d4..4741bda 100644
+--- a/kern/include/addrspace.h
++++ b/kern/include/addrspace.h
+@@ -23,7 +23,6 @@ struct addrspace {
+ 	size_t as_npages2;
+ 	paddr_t as_stackpbase;
+ #else
+-	/* Put stuff here for your VM system */
+ #endif
+ };
+ 
+diff --git a/kern/include/kern/callno.h b/kern/include/kern/callno.h
+index 37b8bae..1eb5779 100644
+--- a/kern/include/kern/callno.h
++++ b/kern/include/kern/callno.h
+@@ -40,6 +40,8 @@
+ #define SYS___getcwd     29
+ #define SYS_stat         30
+ #define SYS_lstat        31
++#define SYS_getppid      32
++
+ /*CALLEND*/
+ 
+ 
+diff --git a/kern/include/synch.h b/kern/include/synch.h
+index d339528..3710d3c 100644
+--- a/kern/include/synch.h
++++ b/kern/include/synch.h
+@@ -50,10 +50,8 @@ void              sem_destroy(struct semaphore *);
+ 
+ struct lock {
+ 	char *name;
+-	// add what you need here
+-	// (don't forget to mark things volatile as needed)
+-	volatile int is_lock_free_or_acquired;   // lock free is 0 and acquired is 1
+-        struct thread *owner_of_the_lock; // pointer to holder of the lock 		
++	volatile struct thread *lock_owner;
++	volatile int is_locked;
+ };
+ 
+ struct lock *lock_create(const char *name);
+diff --git a/kern/include/syscall.h b/kern/include/syscall.h
+index 339514d..d19d8f0 100644
+--- a/kern/include/syscall.h
++++ b/kern/include/syscall.h
+@@ -1,11 +1,33 @@
+ #ifndef _SYSCALL_H_
+ #define _SYSCALL_H_
+ 
++#include <types.h>
++#include <kern/errno.h>
++#include <lib.h>
++#include <machine/pcb.h>
++#include <machine/spl.h>
++#include <machine/trapframe.h>
++#include <kern/callno.h>
++#include <syscall.h>
++
++
+ /*
+  * Prototypes for IN-KERNEL entry points for system call implementations.
+  */
+ 
+ int sys_reboot(int code);
+ 
++// PA 2
++
++int sys_getpid(int *retval);
++int sys_getppid(int *retval);
++
++int sys_fork(struct trapframe* tf, pid_t *retval);
++int sys_execv(const char* progname, char **args, pid_t *retval);
++int sys_waitpid(pid_t pid, userptr_t user_retval, int flags, int *retval );
++void sys_exit(int code);
++  
++
++
+ 
+ #endif /* _SYSCALL_H_ */
+diff --git a/kern/include/test.h b/kern/include/test.h
+index 6c30718..7ec686e 100644
+--- a/kern/include/test.h
++++ b/kern/include/test.h
+@@ -45,6 +45,7 @@ int nettest(int, char **);
+ void menu(char *argstr);
+ 
+ /* Routine for running userlevel test code. */
+-int runprogram(char *progname);
++int runprogram(char *progname, int argc, char **uargv);
++
+ 
+ #endif /* _TEST_H_ */
+diff --git a/kern/include/thread.h b/kern/include/thread.h
+index b051467..0d42c73 100644
+--- a/kern/include/thread.h
++++ b/kern/include/thread.h
+@@ -7,7 +7,8 @@
+ 
+ /* Get machine-dependent stuff */
+ #include <machine/pcb.h>
+-
++#include <types.h>
++#include <proc.h>
+ 
+ struct addrspace;
+ 
+@@ -37,6 +38,12 @@ struct thread {
+ 	 * and is manipulated by the virtual filesystem (VFS) code.
+ 	 */
+ 	struct vnode *t_cwd;
++
++	// 
++	// PA2 
++	// 
++	struct proc *t_proc;
++	
+ };
+ 
+ /* Call once during startup to allocate data structures. */
+diff --git a/kern/main/main.c b/kern/main/main.c
+index 46dcd1e..684374e 100644
+--- a/kern/main/main.c
++++ b/kern/main/main.c
+@@ -20,7 +20,7 @@
+ /*
+  * These two pieces of data are maintained by the makefiles and build system.
+  * buildconfig is the name of the config file the kernel was configured with.
+- * buildversion starts at 1 and is incremented every time you link a kernel. 
++ * buildversion starts at 1 and is incremented every time you link a kernel.
+  *
+  * The purpose is not to show off how many kernels you've linked, but
+  * to make it easy to make sure that the kernel you just booted is the
+@@ -66,7 +66,7 @@ boot(void)
+ 	kprintf("%s", harvard_copyright);
+ 	kprintf("\n");
+ 
+-	kprintf("Aditi Reddy(AREDDY20)'s system version %s (%s #%d)\n", 
++	kprintf("Aditi Reddy(AREDDY20)'s system version %s (%s #%d)\n",
+ 		GROUP_VERSION, buildconfig, buildversion);
+ 	kprintf("\n");
+ 
+@@ -98,7 +98,7 @@ shutdown(void)
+ {
+ 
+ 	kprintf("Shutting down.\n");
+-	
++
+ 	vfs_clearbootfs();
+ 	vfs_clearcurdir();
+ 	vfs_unmountall();
+@@ -160,7 +160,7 @@ kmain(char *arguments)
+ {
+ 	boot();
+         hello();
+-        
++
+         DEBUG(DB_VM, "VM free pages: %u\n", free_pages);
+         DEBUG(DB_NET, "Connecting to server %s\n", hostname);
+         DEBUG(DB_VFS, "Opening file %s\n", pathname);
+diff --git a/kern/main/menu.c b/kern/main/menu.c
+index b2f6b79..df46baf 100644
+--- a/kern/main/menu.c
++++ b/kern/main/menu.c
+@@ -17,9 +17,22 @@
+ #include "opt-synchprobs.h"
+ #include "opt-sfs.h"
+ #include "opt-net.h"
++#include <proc.h>
++#include <curthread.h>
++#include <syscall.h>
+ 
+ #define _PATH_SHELL "/bin/sh"
+ 
++struct	proc		*init_process;
++
++
++struct thread_arguments {
++	struct proc *p;
++	char **args;
++	unsigned long nargs;
++};
++
++
+ #define MAXMENUARGS  16
+ 
+ void
+@@ -54,22 +67,21 @@ static
+ void
+ cmd_progthread(void *ptr, unsigned long nargs)
+ {
+-	char **args = ptr;
+ 	char progname[128];
+ 	int result;
++	char **args = ((struct thread_arguments*)ptr)->args;
++	struct proc *p = ((struct thread_arguments*)ptr)->p;
+ 
+ 	assert(nargs >= 1);
+-
+-	if (nargs > 2) {
+-		kprintf("Warning: argument passing from menu not supported\n");
+-	}
+-
+-	/* Hope we fit. */
+ 	assert(strlen(args[0]) < sizeof(progname));
+ 
++	kfree(ptr);
+ 	strcpy(progname, args[0]);
+ 
+-	result = runprogram(progname);
++	curthread->t_proc = p;
++
++	result = runprogram(progname, nargs, args);
++
+ 	if (result) {
+ 		kprintf("Running program %s failed: %s\n", args[0],
+ 			strerror(result));
+@@ -95,21 +107,46 @@ static
+ int
+ common_prog(int nargs, char **args)
+ {
+-	int result;
++	int result = 0;
++	struct thread_arguments *targs = NULL;
++	pid_t pid;
+ 
+ #if OPT_SYNCHPROBS
+ 	kprintf("Warning: this probably won't work with a "
+ 		"synchronization-problems kernel.\n");
+ #endif
+ 
++	// kprintf("common_prog:: Got called with nargs = %d\n", nargs);
++
++	targs = kmalloc( sizeof( struct thread_arguments ) );
++	if( targs == NULL ) {
++		panic("cmd::args Dont have memory\n");
++		return ENOMEM;
++	}	
++
++	targs->args = args;
++	result = proc_create(&targs->p);
++	if (result) {
++		kprintf("common_prog::proc_create failed with errno = %d\n", result);
++		panic("proc_create");
++	}
++	// kprintf("common_prog::calling thread_fork: %p\n", targs->p);
++
++	targs->p->parent = init_process;
++	pid = targs->p->pid;
++
+ 	result = thread_fork(args[0] /* thread name */,
+-			args /* thread arg */, nargs /* thread arg */,
+-			cmd_progthread, NULL);
++				(void*)targs /* thread arg */,
++				nargs /* thread arg */,
++				cmd_progthread, 
++				NULL);
++
+ 	if (result) {
+ 		kprintf("thread_fork failed: %s\n", strerror(result));
+ 		return result;
+ 	}
+ 
++	sys_waitpid(pid, NULL, 0, &result);
+ 	return 0;
+ }
+ 
+@@ -639,13 +676,21 @@ menu_execute(char *line, int isargs)
+  *      "mount sfs lhd0; bootfs lhd0; s"
+  */
+ 
++
+ void
+ menu(char *args)
+ {
+ 	char buf[64];
+ 
+-	menu_execute(args, 1);
++	proc_init();
+ 
++	// Initialize the init process
++	if (proc_create(&init_process)) {
++		panic("menu::proc_create::cannot create init process");
++	}
++	curthread->t_proc = init_process;
++
++	menu_execute(args, 1);
+ 	while (1) {
+ 		kprintf("OS/161 kernel [? for menu]: ");
+ 		kgets(buf, sizeof(buf));
+diff --git a/kern/thread/synch.c b/kern/thread/synch.c
+index f65a1ed..0778f63 100644
+--- a/kern/thread/synch.c
++++ b/kern/thread/synch.c
+@@ -114,10 +114,8 @@ lock_create(const char *name)
+ 		return NULL;
+ 	}
+ 	
+-	// add stuff here as needed
+-	// Initialize lock and it's owner - no owner and lock is free
+-	lock->owner_of_the_lock = NULL;
+-	lock->is_lock_free_or_acquired = 0;
++	lock->is_locked = 0;
++	lock->lock_owner = NULL;
+ 	
+ 	return lock;
+ }
+@@ -125,10 +123,14 @@ lock_create(const char *name)
+ void
+ lock_destroy(struct lock *lock)
+ {
++	int spl;
+ 	assert(lock != NULL);
+ 
+-	// add stuff here as needed
+-	
++	spl = splhigh();
++	assert(lock->is_locked == 0 && lock->lock_owner == NULL);
++	assert(thread_hassleepers(lock)==0);
++	splx(spl);
++
+ 	kfree(lock->name);
+ 	kfree(lock);
+ }
+@@ -136,63 +138,58 @@ lock_destroy(struct lock *lock)
+ void
+ lock_acquire(struct lock *lock)
+ {
+-	// Write this
+-        assert(lock != NULL);
+-	assert(!lock_do_i_hold(lock)); // This makes sure current thread is not already holding lock
+-
+-	int spl =splhigh();
+-       
+-        // following code meets 4 requirements
+-	// 1. marks the lock as “acquired”, if the lock was free
+-	// 2. If the lock has already been acquired by another thread, then it puts the current (requesting) thread to “sleep”
+-	// 3. It's not a "busy waiting" since it puts threads to sleep
+-	// 4. "atomic" - no context switches are allowed. Thus, call splhigh(), quickly do the operations, then call splx().
++	int spl;
++	assert(lock != NULL);
+ 	
+-	while (lock->is_lock_free_or_acquired) {
+-		thread_sleep(lock);
+-	}
+-
+-	lock->is_lock_free_or_acquired = 1;
+-	lock->owner_of_the_lock = curthread;
++	assert(in_interrupt==0);
+ 
++	spl = splhigh();
++	while (lock->is_locked == 1) {
++		if (lock->lock_owner != curthread)
++			thread_sleep(lock);
++		else {
++			lock->is_locked = 0;
++			lock->lock_owner = NULL;
++		}
++	}
++	assert(lock->is_locked == 0 && lock->lock_owner == NULL);
++	lock->is_locked = 1;
++	lock->lock_owner = curthread;
+ 	splx(spl);
+-
+ }
+ 
+ void
+ lock_release(struct lock *lock)
+ {
+-	// Write this
+-        assert(lock != NULL);
+-	assert(lock_do_i_hold(lock)); // This makes sure the current thread holding the lock
+-
+-	int spl = splhigh(); // This will disable any interrupts to be atomic
+-
+-	// Now release the lock
+-        // The lock_release() marks the lock as “available” - Only the acquirer can release the lock	
+-	lock->is_lock_free_or_acquired = 0;
+-	lock->owner_of_the_lock = NULL;
+-
+-	// Now wake up threads which may be waiting for the lock.
++	int spl;
++	assert(lock != NULL);
++	spl = splhigh();
++	assert(lock->is_locked == 1);
++	assert(lock->lock_owner == curthread);
++	lock->is_locked = 0;
++	lock->lock_owner = NULL;
+ 	thread_wakeup(lock);
+-
+-	// Now restore the interrupt 
+ 	splx(spl);
+-
+-	
+-
+ }
+ 
+ int
+ lock_do_i_hold(struct lock *lock)
+ {
+-	// Write this
+-	// True if the current thread holds the lock, false otherwise.
+-        if (lock->owner_of_the_lock== curthread) {
+-           return 1;
+-          } else {
+-              return 0;
+-            }	
++	int spl;
++	int ret;
++
++	assert(lock != NULL);
++
++	spl = splhigh();
++	if (lock->is_locked == 1 && lock->lock_owner == curthread) {
++		ret = 1;
++	}
++	else {
++		ret = 0;
++	}
++	splx(spl);
++
++	return ret;
+ }
+ 
+ ////////////////////////////////////////////////////////////
+diff --git a/kern/thread/thread.c b/kern/thread/thread.c
+index eeba058..84f7fc6 100644
+--- a/kern/thread/thread.c
++++ b/kern/thread/thread.c
+@@ -227,7 +227,7 @@ thread_shutdown(void)
+  * Create a new thread based on an existing one.
+  * The new thread has name NAME, and starts executing in function FUNC.
+  * DATA1 and DATA2 are passed to FUNC.
+- */
++ */                                                       
+ int
+ thread_fork(const char *name, 
+ 	    void *data1, unsigned long data2,
+@@ -237,7 +237,6 @@ thread_fork(const char *name,
+ 	struct thread *newguy;
+ 	int s, result;
+ 
+-
+ 	/* Allocate a thread */
+ 	newguy = thread_create(name);
+ 	if (newguy==NULL) {
+diff --git a/kern/userprog/runprogram.c b/kern/userprog/runprogram.c
+index 7473e27..1dd7d16 100644
+--- a/kern/userprog/runprogram.c
++++ b/kern/userprog/runprogram.c
+@@ -22,54 +22,82 @@
+  * Calls vfs_open on progname and thus may destroy it.
+  */
+ int
+-runprogram(char *progname)
++runprogram(char *progname, int argc, char **argv)
+ {
++	int i;
++
+ 	struct vnode *v;
+ 	vaddr_t entrypoint, stackptr;
+ 	int result;
+ 
+-	/* Open the file. */
+ 	result = vfs_open(progname, O_RDONLY, &v);
++
+ 	if (result) {
+ 		return result;
+ 	}
+ 
+-	/* We should be a new thread. */
+ 	assert(curthread->t_vmspace == NULL);
+ 
+-	/* Create a new address space. */
+ 	curthread->t_vmspace = as_create();
+ 	if (curthread->t_vmspace==NULL) {
+ 		vfs_close(v);
+ 		return ENOMEM;
+ 	}
+ 
+-	/* Activate it. */
+ 	as_activate(curthread->t_vmspace);
+ 
+-	/* Load the executable. */
+ 	result = load_elf(v, &entrypoint);
+ 	if (result) {
+-		/* thread_exit destroys curthread->t_vmspace */
+ 		vfs_close(v);
+ 		return result;
+ 	}
+ 
+-	/* Done with the file now. */
+ 	vfs_close(v);
+ 
+-	/* Define the user stack in the address space */
+ 	result = as_define_stack(curthread->t_vmspace, &stackptr);
+ 	if (result) {
+-		/* thread_exit destroys curthread->t_vmspace */
+ 		return result;
+ 	}
+ 
+-	/* Warp to user mode. */
+-	md_usermode(0 /*argc*/, NULL /*userspace addr of argv*/,
+-		    stackptr, entrypoint);
++	for (i = 0; i < argc; i++) {
++		int len;
++		int res;
++		int j;
++
++		len = strlen(argv[i]);
++		len = (len + 7) / 8 * 8;
++
++		stackptr -= len;
++		for (j = 0; j < len; ++j) {
++			char null = '\0';
++			res = copyout((const void *)(&null),(userptr_t)(stackptr+j), sizeof(char));
++			if (res) {
++				return EFAULT;
++			}
++		}
++		res=copyout((const void *)argv[i],(userptr_t)stackptr, len);
++		if (res) {
++			return EFAULT;
++		}
++		argv[i] = (char*) stackptr;
++	}
++	
++
++	for (i = argc; i >= 0; i--) {
++		int res;
++		char *ptr = (i==argc)?NULL: argv[i];
++		stackptr -= sizeof(char*);
++		res = copyout((const void *)&ptr,(userptr_t)stackptr, sizeof(char*));
++		if (res) {
++			return EFAULT;
++		}
++	}
++
++	md_usermode(argc,
++				(userptr_t)stackptr,
++				stackptr, 
++				entrypoint);
+ 	
+-	/* md_usermode does not return */
+ 	panic("md_usermode returned\n");
+ 	return EINVAL;
+ }
+diff --git a/lib/libc/err.c b/lib/libc/err.c
+index 80eb90e..14cdd79 100644
+--- a/lib/libc/err.c
++++ b/lib/libc/err.c
+@@ -61,12 +61,12 @@ __printerr(int use_errno, const char *fmt, va_list ap)
+ 	 * name (this is how BSD err* prints) but it doesn't make
+ 	 * much difference.
+ 	 */
+-	if (__argv!=NULL && __argv[0]!=NULL) {
+-		prog = __argv[0];
+-	}
+-	else {
+-		prog = "(program name unknown)";
+-	}
++	// if (__argv!=NULL && __argv[0]!=NULL) {
++	// 	prog = __argv[0];
++	// }
++
++	// TODO: Hack, Dont know why but accessing __argv[0] ptr causes trap 4 error
++	prog = "(program name unknown)";
+ 
+ 	/* print the program name */
+ 	__senderrstr(prog);
+diff --git a/testbin/Makefile b/testbin/Makefile
+index 312cda1..498745a 100644
+--- a/testbin/Makefile
++++ b/testbin/Makefile
+@@ -12,6 +12,7 @@ all depend tags clean install:
+ 	(cd conman && $(MAKE) $@)
+ 	(cd crash && $(MAKE) $@)
+ 	(cd ctest && $(MAKE) $@)
++	(cd myalltests && $(MAKE) $@)
+ 	(cd dirconc && $(MAKE) $@)
+ 	(cd dirseek && $(MAKE) $@)
+ 	(cd dirtest && $(MAKE) $@)
+@@ -40,6 +41,9 @@ all depend tags clean install:
+ 	(cd triplehuge && $(MAKE) $@)
+ 	(cd triplemat && $(MAKE) $@)
+ 	(cd triplesort && $(MAKE) $@)
++	(cd triplesort && $(MAKE) $@)
++	(cd mypidtest && $(MAKE) $@)
++	(cd myforktest && $(MAKE) $@)
+ 
+ # But not:
+ #    malloctest     (no malloc/free until you write it)

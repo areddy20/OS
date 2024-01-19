@@ -1,0 +1,296 @@
+Introduction
+
+
+Purpose of this assignment is to successfully have the OS/161 kernel to transform into a 
+proper multitasking operating system through having the capabilities of running processes
+from the specific system calls that are implemented in PA2. Before the implementation
+of these system calls were coded, two files which are the callno.h and unistd.h were 
+provided. The two files deal with system call numbers and constants that the system calls
+need to be run successfully. The following system calls to be implemented are getpid, getppid,
+fork, execv, waitpid, and _exit. The goal after these system calls are implemented is to have
+all errors handled without crashing and returning the appropriate values specified in the
+guidelines.
+
+
+getpid and getppid
+
+I. High level description on approaching the problem
+
+For the first system call, getpid.c, returning the pid of the executing process was the main 
+objective here. The approach for this problem was to develop a maintenance system, that allocates
+and reclaims pids. The creation of this maintenance system would be very beneficial for not only
+getpid.c, but also for the second system call,getppid.c, due to the discussion of all the functions 
+it can have to make the design for both getpid.c and getppid.c simple and efficient through a 
+unique number that represent a process for identification. In order to accomplish this, data structures 
+and problem type were discussed along with looking through the textbook and slides that deal with specifics 
+of these topics. After a discussion of the approach, comprehensive review on the topics of 
+the data structures and problem type, and organizing an outline for the design of the maintenance 
+system, a conclusion was made that the use of a struct and synchronization would be implemented.
+
+II. Detailed description of the implementation
+
+First, the maintenance system was made from two files, proc.h and proc.c. Both these files define
+and perform the control blocks for the processes that work as a maintenance system. The structure
+in this maintenance system have variables for storing pids, a lock and semaphore for synchronization, 
+a pointer to the parent process, storage for exit code for a process, and a flag for completion purposes.
+After implementing this maintanence system, the getpid.c file was made to implement the sys_getpid system
+call. This has the goal of returning the pid of an executing process. There is also error handling when a 
+pid doesn't exist and if that's the case, an error or invalid state is returned as -1. After finishing 
+getpid.c, the getppid.c file was made to implement sys_getppid system call. This has the goal of 
+returning the parent process'pid for the executing process and if the parent process has exited, -1 
+is returned. The only difference here was that the parent pid is being returned. Similarly, error handling 
+is also done here to return -1 when the pid doesn't exist or if an orphan is present.
+
+III. Discussion of pros and cons of the approach 
+
+The approach for implementing both getpid.c and getppid.c both have similar pros and cons mainly due
+to their combined use of the maintenance system. Some pros include how there is 
+sufficient dependability on the system for properly managing the pids due to synchronization methods like
+the use of locks and semaphores, efficient identification through the coding of the getpid.c and getppid.c, 
+and proper error handling in both system calls to deal with errors. Some cons for getpid.c and getppid.c 
+would be how the maintenance system needed to be carefully implemented in order to have proper
+synchronization so mutual exclusion doesn't occur or any other common issues related to that and making
+conditions for the exhaustion of pids and orphaned processes were time complexing due to the extra code 
+needed to be understood, written, and tested to make sure all cases were handled.
+
+
+IV. Considered alternatives and reasoning 
+
+Some approaches that were considered during the discussion on how to design these system calls include 
+different strategies for allocation like static allocation. This strategy was discarded after careful
+reading and understanding of the topic since dynamic allocation had more advantages when dealing with
+preventing exhaustion of pids. This idea was fully discarded when implementing the maintenance system,
+pid_manager since conditions were added for this case and dynamic allocation was the best approach for
+writing this code. 
+
+
+Fork
+
+I. High level description on approaching the problem
+
+For the third system call, fork.c, duplicating the current process, child processes having a unique pid,
+and parent processes returning the child process' pids, were the main objectives here. The approach for this
+problem began with developing a method to perform duplication by still having making the other objectives
+perform efficiently. After a discussion, comprehensive reading of the slides related to forking, and a 
+basic outline of how the design should look like, multiple ideas were presented. These include pid allocation,
+trapframe copying, address space duplication, thread creation, initialization of child processes, and error
+handling. Lastly, before attempting code, it was finalized that there will be a function to perform multiple 
+tasks and then switch to user mode, and a struct to set up the this function to improve the sys_fork system call.
+
+
+II. Detailed description of the implementation
+
+First, a struct called fork_thread_arguments was made to deal with arguments to pass to the child process
+at the fork_child_entry function. This entry function initializes the new thread's process, vmspace,
+and then has the address space activated. The logic in this code shows proper pid allocation and trapframe 
+copying, freeing any allocated memory, and then calls another forking function
+to have the child process continue. The system call, sys_fork() begins with allocating memory for the
+for_thread_arguments struct, creating new processes through proc_create, and then setting the parent
+to the current process. The copying the parents' trapframe for the child is then performed and the as_copy
+function makes the address space get duplicated. This function was used since it creates new 
+processes from existing ones making this function useful for one of the goals for fork. Lastly, 
+thread_fork gets called to produce a new thread to run in the struct made initially and then the child pid
+is returned and a switch to user mode occurs. Additionally, the error handling was coded in the system 
+call by making sure a thread is forked in order for a new child to be executed, checks for failed pid 
+allocation and memory. These error checks also produces the appropriate error returns according to the
+guidlines.
+
+
+III. Discussion of pros and cons of the approach 
+
+There are multiple pros and cons with the approach that deals with the implementation of sys_fork() from
+the additional code in fork.c. Some pros include a proper duplication process for the state and memory
+which results in independence for the child from the parent which is one of the main goals for fork.
+Another pro would be how the error handling involves multiple cases that ensure no invalid results occur.
+Also, the design of the code is shows clear logic in order of tasks to be done, like the creation of the 
+parent and child. Some cons include not being completely certain that the address spaces will always be
+duplicated correctly every single time and how constraints like resource management may result in errors
+in the duplication process due to the code being solely focusing on the unique child pids and creation of
+adress spaces if needed. 
+
+
+IV. Considered alternatives and reasoning 
+
+Some approaches that were considered during the discussion on how to design the fork system call would
+be attempting to add more memory usage through other strategies, but due to a not comprehensive 
+understanding on the strategies, a more simple design was pursued which also followed 
+the guidelines clearly. 
+
+
+Execv
+
+I. High level description on approaching the problem
+
+For the fourth system call, execv.c, replacing the currently executing program image, copying arguments
+from user space into kernel buffer, opening the executable, creating a new address space, loading elf,
+copying arguments from the kernel buffer to user stack, allocating a stack, and returning to user mode
+are all are the main objectives here. The approach for the problem began with figuring out a method to
+handle arguments, address space management, and proper transitioning from kernel to user mode. After a
+a comprehensive reading and understadning of the slides and the textbook chapters that deal with these
+topics, a basic outline was produced about what requirements needed to be implemented. This outline
+included ideas and functions for argument handling, stacks and pointers, managing address space, entering
+processes, error handling. 
+
+II. Detailed description of the implementation
+
+The execv.c implementation starts of with copying arguments from the user space from the 
+copy_string_from_userland function which also avoids faults. Then the system call sys_execv
+has the arguments transferred from user to kernel while going through error checks that deal
+with copying and then the executable is performed from vfs_open. The as_create function produces
+a new address space when the current one gets destroyed resulting in elf being loaded to activate
+the new address space with load_elf. The stack is then made in this new address space through
+as_define_stack. The arguments get transferred back to the user space while md_usermode is called
+to switch the mode to start execution. If md_usermode gets returned, a panic gets triggered. 
+Consequently, there are error checks in order for checking memory allocation, copying for user space,
+execution for elf, along with cleaning at the end of all functions for freeing.
+
+III. Discussion of pros and cons of the approach 
+
+There are multiple pros and cons with the approach for the implementation of execv.c that were aligned
+with the initial ideas in the outline made before attempting any code. Some pros include a strong logic
+for handling the setup for the stack and execution for the elf executable. Another pro was the strong
+focus of memory management that properly transitions between user and kernel mode. Also, the amount
+of error handling done throughout the whole execv.c file ensures there are no memory leaks. Some cons
+include how there is some time complexity issue with the  memory management impacting the switch 
+from user and kernel and overhead may increase the system call due to the code logic having a strong
+emphasize on the address space setup.
+
+IV. Considered alternatives and reasoning 
+
+There were no alternatives discussed since understanding how to implement this system call took the
+most amount of time so the first outline of ideas for functions and goals for this system call to 
+have implement seemed like the best approach at the time of coding and testing it. 
+
+
+waitpid
+
+I. High level description on approaching the problem
+
+For the fifth system call, waitpid.c, waiting for specific processes to exit, returning exit code with
+integer pointer status, and returning and failing of waitpid, are all the main objectives here. The 
+approach for this problem involved a discussion on designing a method that has a process suspend execution
+until the specified process terminates in order to achieve an accurate exit status along with resource
+cleanup. After a comprehensive reading and understanding from the slides and textbook about related to
+these goals, a basic outline was made that lists logic for all these goals through the use of condition
+variables, pointers, and cleaning methods. An observation was also made that the use of locks and 
+semaphores would be beneficial.
+
+II. Detailed description of the implementation
+
+waitpid.c has the system call, sys_waitpid, that retrieves a child pid that it's waiting for, 
+uses a pointer for storing the return value, intialized flags, and another pointer for storing
+the terminated child's pid. There is also a check for if the current pid is valid and returns the 
+appropriate invalid result if there is a failure. The use of locks, proctobale_lock, is crucial here 
+since it goes through the table to determine the process with the current pid. When found, the process 
+gets locked through proc_lock, and checks the status for completion. If the process hasn't completed, 
+the semaphore gets waited on until the status changes. Once completed, return_code is retrieved due to 
+termination and the exit status gets copied back to the user space only if user_returnval is not null. 
+Lastly, a cleaning function gets called for the terminated child process. There are also error checks in 
+waitpid.c that deal with checking invalid children, options, and memory that returns their appropriate
+error messages.
+
+III. Discussion of pros and cons of the approach 
+
+There are multiple pros and cons with the approach for the implementation of waitpid.c that align with 
+the initial discussion had before attempting the code. Some pros include proper synchronization
+techniques, due to the locks, semaphores, and cleanup functions. Also,there is clear logic that 
+shows a process waiting until the child terminates. Another pro would be a proper use of receiving and 
+handling of the exit status through the code along with error handling to ensure valid arguments 
+produce the required outputs according to the guidlines and vise versa. Some cons would be that the flags
+aren't fully utilized and could cause issues along with the amount of memory being maximized due to
+possible errors in the logic for the locks and semaphores.
+
+
+IV. Considered alternatives and reasoning
+
+There were numerous ideas at first since dealing with synchronization has a lot of approaches, but
+were discarded since the use of conditional flag to achieve synchronization helps with the simplicity
+efficiency factors for this system call.
+
+
+exit
+
+I. High level description on approaching the problem
+
+The last system call that needed to be fully implemented, exit, current processes exiting and exiting
+process id can't be reused if others are interested are both the main objectives here. After a 
+comprehensive reading and understanding from the slides and textbook that dealt with these goals along 
+with seeing similarities from P2 approaches that deal with race conditions, a basic outline was 
+immediately finalized with just having the sys__exit() method performing these duties. These duties 
+include allowing a process to terminate, updating the status, broadcasting its exit to
+any waiting processes, and releasing or cleaning resources. An observation was also made here to reuse 
+conditional variables like in waitpid.c and the maintenance system used in getpid() and getppid().
+
+II. Detailed description of the implementation
+
+sys__exit starts off by acquiring a lock to access the table of pids and then updating the current
+thread's status in that same table. Then there is a conditional statement of updating the exit status
+according to the value of the pointer. Then a flag, done, and a semaphore are utilized for broadcasting
+so the other processes know that there was a termination. Lastly, cleaning was done and threads have 
+exited, through thread_exit().
+
+III. Discussion of pros and cons of the approach 
+
+There are multiple pros and cons with the approach for the implementation of exit.c that align with 
+the initial discussion/final outline before attempting the code. Some pros include how the logic 
+shows that the processes terminate according to the rules in the guidlines while updating the status
+and notifying other processes. Another pro would be the use of conditional variable simplifying the
+design for this system call and the use of locks eliminated race conditions for the threads. 
+Additionally, the use of semaphores for signalling completion aids in a synchronization problem.
+Some cons include how the management of locks and conditional variables require careful understanding 
+when writing the code for them to ensure no deadlocks or leaks occur, since that was an issue faced in P2.
+
+IV. Considered alternatives and reasoning
+
+There were no alternatives discussed since this system call's guidelines had familiarity in how some 
+functions were implemented in P2, so it was decided right away to go with the same approach but also 
+making sure code is correct this time around to prevent deadlocks.
+
+
+runprogram
+
+I. High level description on approaching the problem
+
+This function was already given and a recommendation was made to alter the code to have the processes
+start properly like having standard file descriptors available when running. After understanding the
+already implemented parts of this function and the goals needed to be achieved, it was finalized
+in a basic outline to use this implementation to improve the  execv system call. An observation was 
+made that the main purpose of this function is for the kernel menu to be executed accurately.
+
+II. Detailed description of the implementation
+
+runprogram.c has a function for opening the executable using vfs_open and there are error checks to 
+have an early return if a failure occurs. There are also address spaces being created and activated 
+by making the memory space, t_vmspace, set to null to show there are no present address spaces available.
+New address spaces are created through as_create, and they are activated through as_activate. Additionally,
+load_elf is used to launch elf making the entry point stored and there is a stack set up 
+through as_define_stack. The copyout function is utilized here by having the pointer for the stack to
+copy the arguments passed. Lastly, md_usermode is called to make the switch to user mode for execution and
+there is an error check for panic being called when the function doesn't return.
+
+III. Discussion of pros and cons of the approach 
+
+There are multiple pros and cons with the approach for the implementation of runprogram.c. Some pros
+include proper memory management through freeing, proper error handeling by consisten error checks, and
+the initialization and end use of the stack for the command line arguments. A con would be that this
+implementation did not help too much with execv since it is much simpler and uses less primitives in
+logic.
+
+IV. Considered alternatives and reasoning
+
+There were no other alternatives since most of the code was provided and all that needed to be done
+was adding standard file descriptors which did not take a lot of discussion to implement.
+
+
+
+Conclusion
+
+All of the system calls were placed inside the kern/userprog directory and named accordingly
+to the guidlines. These system calls implemented above were tested thoroughly by also using 
+the man page since it gave a proper overview of what the results needed to be. At the end of 
+the implementation, it was discovered that two different user-level processes/threads cannot 
+run at the same time during a system call. This was proven through constant testing and the 
+logic in all of the system call files.
+
+
+
